@@ -1,7 +1,3 @@
-Вот описание для **README.md** для вашего проекта **notes-py-**:  
-
----  
-
 # **📒 notes-tg-bot**  
 
 **notes-tg-bot** is a simple Telegram bot for managing notes and folders using the **Aiogram** framework. Users can create, view, and delete notes, organize them into folders, and interact with the bot via commands and inline buttons.  
