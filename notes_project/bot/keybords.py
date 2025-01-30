@@ -1,4 +1,5 @@
-﻿from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, BotCommand
+# TODO: Rename file to correct spelling KEYBOARDS
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 kb_main_menu = [
     [

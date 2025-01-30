@@ -1,9 +1,13 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
+# TODO: create django app with name telegram bot and move start of this app to management command
+# ^ example: https://docs.djangoproject.com/en/5.1/howto/custom-management-commands/
+import os
+import django
+import sys
 
-import os, django, sys
-
-sys.path.append(r'C:/Users/ast04/Desktop/projects/notes-bot/notes_project')
-os.environ['DJANGO_SETTINGS_MODULE'] = 'notes_project.settings'
+# TODO: syspath should be platform independent
+sys.path.append(r"C:/Users/ast04/Desktop/projects/notes-bot/notes_project")
+os.environ["DJANGO_SETTINGS_MODULE"] = "notes_project.settings"
 django.setup()
 
 from dotenv import load_dotenv
@@ -14,14 +18,19 @@ import logging
 import keybords as kb
 
 from aiogram import Bot, Dispatcher, types, F
+
 # from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.filters.command import Command
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton, BotCommandScopeDefault, BotCommand
+from aiogram.types import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    BotCommandScopeDefault,
+    BotCommand,
+)
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
-from django.core.management import execute_from_command_line
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
@@ -33,6 +42,7 @@ from notes.models import Note, Folder
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# TODO: place API TOKEN in django settings
 load_dotenv()  # Загружаем переменные окружения из .env
 API_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -44,10 +54,11 @@ user_model = get_user_model()
 
 
 # Состояния заметок
-class NoteStates(StatesGroup):   
+class NoteStates(StatesGroup):
     waiting_for_note_title = State()
     waiting_for_note_text = State()
     waiting_for_folder_choice = State()
+
 
 # Состояния папок
 class FolderStates(StatesGroup):
@@ -60,7 +71,7 @@ async def set_commands(bot: Bot):
         BotCommand(command="/add_note", description="Создать заметку"),
         BotCommand(command="/add_folder", description="Создать папку"),
         BotCommand(command="/all_notes", description="Все заметки"),
-        BotCommand(command="/all_folders", description="Все папки")
+        BotCommand(command="/all_folders", description="Все папки"),
     ]
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
 
@@ -72,14 +83,17 @@ def create_custom_user(user_id, username):
         username = f"user_{user_id}"
 
     user, created = user_model.objects.get_or_create(
-        telegram_id=user_id,
-        defaults={"username": username}
+        telegram_id=user_id, defaults={"username": username}
     )
-    
+
     if created:
-        logger.info(f"Создан новый пользователь: {user.username} (ID: {user.telegram_id})")
+        logger.info(
+            f"Создан новый пользователь: {user.username} (ID: {user.telegram_id})"
+        )
     else:
-        logger.info(f"Пользователь {user.username} уже существует (ID: {user.telegram_id}) \nuser.id = {user.id} \n dict = {user.__dict__}")
+        logger.info(
+            f"Пользователь {user.username} уже существует (ID: {user.telegram_id}) \nuser.id = {user.id} \n dict = {user.__dict__}"
+        )
 
     return user
 
@@ -100,16 +114,22 @@ def get_user_by_id(user_id):
 async def send_welcome(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username
-    
+
     # Создаем пользователя, если он не существует
     user = await create_custom_user(user_id, username)
-    
+
     if user:
-        await message.reply(f"Привет, {message.from_user.first_name}! Вы успешно зарегистрированы в боте.")
+        await message.reply(
+            f"Привет, {message.from_user.first_name}! Вы успешно зарегистрированы в боте."
+        )
     else:
         await message.reply("Произошла ошибка при регистрации пользователя.")
 
-    await bot.send_message(message.from_user.id, "Привет! Я твой бот для заметок.", reply_markup=kb.keyboard_main_menu)
+    await bot.send_message(
+        message.from_user.id,
+        "Привет! Я твой бот для заметок.",
+        reply_markup=kb.keyboard_main_menu,
+    )
 
 
 # Создание заметки
@@ -118,6 +138,7 @@ async def send_welcome(message: types.Message):
 async def add_note(message: types.Message, state: FSMContext):
     await message.reply("Пожалуйста, введите заголовок вашей заметки:")
     await state.set_state(NoteStates.waiting_for_note_title)
+
 
 # Добавление заголовка заметки
 @dp.message(NoteStates.waiting_for_note_title)
@@ -129,15 +150,18 @@ async def get_note_title(message: types.Message, state: FSMContext):
 
 
 # Асинхронное получение всех заметок пользователя
+# TODO: you can use async features of ORM, so you don't need to convert to sync
 @sync_to_async
 def get_user_notes(user_id):
     user = user_model.objects.filter(telegram_id=user_id).first()
     if not user:
         logger.warning(f"Пользователь с ID {user_id} не найден в базе!")
         return []
-    
+
     notes = list(user.notes.all())
-    logger.info(f"Найдено {len(notes)} заметок для пользователя {user.username} (ID: {user_id})")
+    logger.info(
+        f"Найдено {len(notes)} заметок для пользователя {user.username} (ID: {user_id})"
+    )
     return notes
 
 
@@ -171,10 +195,11 @@ def get_note_by_id(note_id):
     except Note.DoesNotExist:
         return None
 
+
 # Обработчик для показа деталей заметки
-@dp.callback_query(F.data.startswith('show_'))
+@dp.callback_query(F.data.startswith("show_"))
 async def show_note_detail(callback_query: types.CallbackQuery):
-    note_id = callback_query.data[len('show_'):]  # Получаем ID заметки
+    note_id = callback_query.data[len("show_") :]  # Получаем ID заметки
     note = await get_note_by_id(note_id)
 
     if not note:
@@ -190,10 +215,11 @@ async def show_note_detail(callback_query: types.CallbackQuery):
     )
 
     # Детали заметки
+    # TODO: Move to django templates
     await callback_query.message.answer(
         f"Заголовок: <b>{note.title}</b>\n\nОписание: \n{note.content if note.content else 'Описание отсутствует.'}\n",
         reply_markup=keyboard,
-        parse_mode="HTML"    # форматирование текста
+        parse_mode="HTML",  # форматирование текста
     )
     await callback_query.answer()
 
@@ -204,12 +230,14 @@ def create_folder(folder_name, user):
     logger.info(f"\nfolder name = {folder_name} \nuser = {user}")
     return Folder.objects.create(name=folder_name, user=user)
 
+
 # Команда для создания папки
 @dp.message(Command("add_folder"))
 @dp.message(F.text == "создать папку")
 async def create_folder_handler(message: types.Message, state: FSMContext):
     await message.reply("Пожалуйста, введите имя вашей папки:")
     await state.set_state(FolderStates.waiting_for_folder_name)
+
 
 # Обработчик ввода имени папки
 @dp.message(FolderStates.waiting_for_folder_name)
@@ -232,7 +260,9 @@ async def get_folder_name(message: types.Message, state: FSMContext):
     logger.info("пользователь существует")
 
     # Проверяем, существует ли уже такая папка
-    folder_exists = await sync_to_async(Folder.objects.filter(name=folder_name, user=user).exists)()
+    folder_exists = await sync_to_async(
+        Folder.objects.filter(name=folder_name, user=user).exists
+    )()
 
     logger.info(f"папка существует = {folder_exists}")
 
@@ -263,12 +293,22 @@ async def get_note_text(message: types.Message, state: FSMContext):
     folders = await get_user_folders(user)
 
     if folders:
-        buttons = [[InlineKeyboardButton(text=folder.name, callback_data=f"folder_{folder.id}")]
-                   for folder in folders]
-        buttons.append([InlineKeyboardButton(text="Без папки", callback_data="folder_none")])
+        buttons = [
+            [
+                InlineKeyboardButton(
+                    text=folder.name, callback_data=f"folder_{folder.id}"
+                )
+            ]
+            for folder in folders
+        ]
+        buttons.append(
+            [InlineKeyboardButton(text="Без папки", callback_data="folder_none")]
+        )
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-        await message.reply("Выберите папку для сохранения заметки:", reply_markup=keyboard)
+        await message.reply(
+            "Выберите папку для сохранения заметки:", reply_markup=keyboard
+        )
         await state.set_state(NoteStates.waiting_for_folder_choice)
     else:
         await message.reply("У вас нет папок. Заметка будет сохранена без папки.")
@@ -279,15 +319,20 @@ async def get_note_text(message: types.Message, state: FSMContext):
 # Выбор папки
 @dp.callback_query(NoteStates.waiting_for_folder_choice)
 async def choose_folder(callback_query: types.CallbackQuery, state: FSMContext):
-    folder_id = callback_query.data[len("folder_"):] if callback_query.data != "folder_none" else None
-    
- 
+    folder_id = (
+        callback_query.data[len("folder_") :]
+        if callback_query.data != "folder_none"
+        else None
+    )
+
     user_id = callback_query.from_user.id
 
     try:
         user = await sync_to_async(user_model.objects.get)(telegram_id=user_id)
     except user_model.DoesNotExist:
-        await callback_query.message.reply("Пользователь не найден! Введите /start для регистрации.")
+        await callback_query.message.reply(
+            "Пользователь не найден! Введите /start для регистрации."
+        )
         return
 
     await save_note(callback_query.message, state, folder_id, user)
@@ -300,11 +345,10 @@ def check_user_exists(user_id):
     return user_model.objects.filter(telegram_id=user_id).exists()
 
 
-
 # Функция сохранения заметки
 async def save_note(message, state, folder_id, user):
     logger.info(f"Начинаем сохранение заметки. User: {user}, Folder ID: {folder_id}")
-    
+
     user_data = await state.get_data()
     note_title = user_data.get("note_title")
     note_text = user_data.get("note_text")
@@ -314,12 +358,15 @@ async def save_note(message, state, folder_id, user):
     folder = None
     if folder_id:
         try:
-            folder = await sync_to_async(Folder.objects.get)(id=int(folder_id), user=user)
+            folder = await sync_to_async(Folder.objects.get)(
+                id=int(folder_id), user=user
+            )
             logger.info(f"Папка найдена: {folder.name}")
         except Folder.DoesNotExist:
-            await message.reply("Выбранная папка не найдена, заметка будет сохранена без папки.")
+            await message.reply(
+                "Выбранная папка не найдена, заметка будет сохранена без папки."
+            )
             logger.info(f"Папка с ID {folder_id} не найдена!")
-
 
     user_exists = await check_user_exists(user.telegram_id)
 
@@ -334,7 +381,7 @@ async def save_note(message, state, folder_id, user):
 
     folder_msg = f" в папке '{folder.name}'" if folder else " без папки"
     await message.answer(f"Заметка '{note_title}' успешно сохранена{folder_msg}! ✅")
-    
+
     await state.clear()
 
 
@@ -342,7 +389,9 @@ async def save_note(message, state, folder_id, user):
 @sync_to_async
 def create_note(title, content, user, folder=None):
     try:
-        logger.info(f"Создаем заметку: {title}, User ID: {user.id if user else 'None'}, Folder: {folder}")
+        logger.info(
+            f"Создаем заметку: {title}, User ID: {user.id if user else 'None'}, Folder: {folder}"
+        )
 
         if not title:
             raise ValueError("Ошибка: title не может быть пустым!")
@@ -354,9 +403,10 @@ def create_note(title, content, user, folder=None):
         user.save()
 
         logger.info("Перед созданием заметки...")
-        logger.info(f"user = {user} \nuser.id = {user.id} \ntitle = {title} \ncontent = {content} \nfolder = {folder}")
+        logger.info(
+            f"user = {user} \nuser.id = {user.id} \ntitle = {title} \ncontent = {content} \nfolder = {folder}"
+        )
         logger.info(f"Тип user: {type(user)}")
-
 
         note = Note.objects.create(
             title=title,
@@ -364,9 +414,8 @@ def create_note(title, content, user, folder=None):
             user=user,
             folder=folder,
             created_at=timezone.now(),
-            updated_at=timezone.now()
+            updated_at=timezone.now(),
         )
-
 
         logger.info(f"Заметка создана с ID: {note.id}")
         return note
@@ -405,8 +454,12 @@ async def show_all_folders(message: types.Message):
     if folders:
         buttons = [
             [
-                InlineKeyboardButton(text=folder.name, callback_data=f"folder_{folder.id}"),
-                InlineKeyboardButton(text="❌", callback_data=f"to_delete_folder_{folder.id}")
+                InlineKeyboardButton(
+                    text=folder.name, callback_data=f"folder_{folder.id}"
+                ),
+                InlineKeyboardButton(
+                    text="❌", callback_data=f"to_delete_folder_{folder.id}"
+                ),
             ]
             for folder in folders
         ]
@@ -417,15 +470,17 @@ async def show_all_folders(message: types.Message):
 
 
 # Отображение содержимого папки
-@dp.callback_query(F.data.startswith('folder_'))
+@dp.callback_query(F.data.startswith("folder_"))
 async def show_folder_detail(callback_query: types.CallbackQuery):
-    folder_id = int(callback_query.data[len('folder_'):])  # ID папки
+    folder_id = int(callback_query.data[len("folder_") :])  # ID папки
     user_id = callback_query.from_user.id
 
     try:
         user = await sync_to_async(user_model.objects.get)(telegram_id=user_id)
     except user_model.DoesNotExist:
-        await callback_query.message.reply("Вы не зарегистрированы! Введите /start для регистрации.")
+        await callback_query.message.reply(
+            "Вы не зарегистрированы! Введите /start для регистрации."
+        )
         await callback_query.answer()
         return
 
@@ -444,23 +499,27 @@ async def show_folder_detail(callback_query: types.CallbackQuery):
             for note in notes
         ]
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-        await callback_query.message.answer(f"Папка: {folder.name}\nВыберите заметку:", reply_markup=keyboard)
+        await callback_query.message.answer(
+            f"Папка: {folder.name}\nВыберите заметку:", reply_markup=keyboard
+        )
     else:
         await callback_query.message.answer(f"Папка: {folder.name} пуста.")
 
-    await callback_query.answer()  
-    
+    await callback_query.answer()
+
 
 # Удаление заметки (из папки тоже)
-@dp.callback_query(F.data.startswith('delete_'))
+@dp.callback_query(F.data.startswith("delete_"))
 async def delete_note(callback_query: types.CallbackQuery):
-    note_id = int(callback_query.data[len('delete_'):])  # Получаем ID заметки
+    note_id = int(callback_query.data[len("delete_") :])  # Получаем ID заметки
     user_id = callback_query.from_user.id
 
     try:
         user = await sync_to_async(user_model.objects.get)(telegram_id=user_id)
     except user_model.DoesNotExist:
-        await callback_query.message.reply("Вы не зарегистрированы! Введите /start для регистрации.")
+        await callback_query.message.reply(
+            "Вы не зарегистрированы! Введите /start для регистрации."
+        )
         await callback_query.answer()
         return
 
@@ -472,7 +531,9 @@ async def delete_note(callback_query: types.CallbackQuery):
 
         folder_msg = f" из папки '{folder.name}'" if folder else ""
 
-        await callback_query.message.edit_text(f"Заметка '{note_title}' успешно удалена{folder_msg}.")
+        await callback_query.message.edit_text(
+            f"Заметка '{note_title}' успешно удалена{folder_msg}."
+        )
     except Note.DoesNotExist:
         await callback_query.message.answer("Заметка не найдена или уже была удалена.")
 
@@ -480,15 +541,19 @@ async def delete_note(callback_query: types.CallbackQuery):
 
 
 # Функция для запроса подтверждения удаления папки
-@dp.callback_query(F.data.startswith('to_delete_folder_'))
+@dp.callback_query(F.data.startswith("to_delete_folder_"))
 async def confirm_delete_folder(callback_query: types.CallbackQuery):
-    folder_id = int(callback_query.data[len('to_delete_folder_'):])  # Получаем ID папки
+    folder_id = int(
+        callback_query.data[len("to_delete_folder_") :]
+    )  # Получаем ID папки
     user_id = callback_query.from_user.id
 
     try:
         user = await sync_to_async(user_model.objects.get)(telegram_id=user_id)
     except user_model.DoesNotExist:
-        await callback_query.message.reply("Вы не зарегистрированы! Введите /start для регистрации.")
+        await callback_query.message.reply(
+            "Вы не зарегистрированы! Введите /start для регистрации."
+        )
         await callback_query.answer()
         return
 
@@ -500,32 +565,54 @@ async def confirm_delete_folder(callback_query: types.CallbackQuery):
         return
 
     # Создаем кнопки подтверждения
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Удалить со всем содержимым", callback_data=f"confirm_all_delete_{folder.id}")],
-        [InlineKeyboardButton(text="Удалить, но сохранить заметки", callback_data=f"confirm_keep_delete_{folder.id}")],
-        [InlineKeyboardButton(text="Не удалять", callback_data="cancel_delete_folder")]
-    ])
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Удалить со всем содержимым",
+                    callback_data=f"confirm_all_delete_{folder.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Удалить, но сохранить заметки",
+                    callback_data=f"confirm_keep_delete_{folder.id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Не удалять", callback_data="cancel_delete_folder"
+                )
+            ],
+        ]
+    )
 
-    await callback_query.message.answer(f"Вы уверены, что хотите удалить папку '{folder.name}'?", reply_markup=keyboard)
+    await callback_query.message.answer(
+        f"Вы уверены, что хотите удалить папку '{folder.name}'?", reply_markup=keyboard
+    )
     await callback_query.answer()
 
 
 # Функция удаления папки вместе с содержимым
-@dp.callback_query(F.data.startswith('confirm_all_delete_'))
+@dp.callback_query(F.data.startswith("confirm_all_delete_"))
 async def delete_folder_with_notes(callback_query: types.CallbackQuery):
-    folder_id = int(callback_query.data[len('confirm_all_delete_'):])  # Получаем ID папки
+    folder_id = int(
+        callback_query.data[len("confirm_all_delete_") :]
+    )  # Получаем ID папки
     user_id = callback_query.from_user.id
 
     try:
         user = await sync_to_async(user_model.objects.get)(telegram_id=user_id)
     except user_model.DoesNotExist:
-        await callback_query.message.reply("Вы не зарегистрированы! Введите /start для регистрации.")
+        await callback_query.message.reply(
+            "Вы не зарегистрированы! Введите /start для регистрации."
+        )
         await callback_query.answer()
         return
 
     try:
         folder = await sync_to_async(Folder.objects.get)(id=folder_id, user=user)
-        
+
         # Удаляем все заметки в папке
         await sync_to_async(Note.objects.filter(folder=folder).delete)()
 
@@ -533,7 +620,9 @@ async def delete_folder_with_notes(callback_query: types.CallbackQuery):
         folder_name = folder.name
         await sync_to_async(folder.delete)()
 
-        await callback_query.message.edit_text(f"Папка '{folder_name}' и все её заметки удалены.")
+        await callback_query.message.edit_text(
+            f"Папка '{folder_name}' и все её заметки удалены."
+        )
     except Folder.DoesNotExist:
         await callback_query.message.answer("Папка не найдена или уже была удалена.")
 
@@ -541,21 +630,25 @@ async def delete_folder_with_notes(callback_query: types.CallbackQuery):
 
 
 # Функция удаления папки без удаления заметок (они останутся без папки)
-@dp.callback_query(F.data.startswith('confirm_keep_delete_'))
+@dp.callback_query(F.data.startswith("confirm_keep_delete_"))
 async def delete_folder_keep_notes(callback_query: types.CallbackQuery):
-    folder_id = int(callback_query.data[len('confirm_keep_delete_'):])  # Получаем ID папки
+    folder_id = int(
+        callback_query.data[len("confirm_keep_delete_") :]
+    )  # Получаем ID папки
     user_id = callback_query.from_user.id
 
     try:
         user = await sync_to_async(user_model.objects.get)(telegram_id=user_id)
     except user_model.DoesNotExist:
-        await callback_query.message.reply("Вы не зарегистрированы! Введите /start для регистрации.")
+        await callback_query.message.reply(
+            "Вы не зарегистрированы! Введите /start для регистрации."
+        )
         await callback_query.answer()
         return
 
     try:
         folder = await sync_to_async(Folder.objects.get)(id=folder_id, user=user)
-        
+
         # Обновляем все заметки в папке (удаляем привязку к папке)
         await sync_to_async(Note.objects.filter(folder=folder).update)(folder=None)
 
@@ -563,7 +656,9 @@ async def delete_folder_keep_notes(callback_query: types.CallbackQuery):
         folder_name = folder.name
         await sync_to_async(folder.delete)()
 
-        await callback_query.message.edit_text(f"Папка '{folder_name}' удалена, но её заметки сохранены.")
+        await callback_query.message.edit_text(
+            f"Папка '{folder_name}' удалена, но её заметки сохранены."
+        )
     except Folder.DoesNotExist:
         await callback_query.message.answer("Папка не найдена или уже была удалена.")
 
@@ -589,6 +684,8 @@ def get_note_with_folder(note_id, user):
 async def main():
     await dp.start_polling(bot)
 
+
 if __name__ == "__main__":
     import asyncio
+
     asyncio.run(main())
