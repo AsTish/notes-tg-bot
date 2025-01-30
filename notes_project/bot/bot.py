@@ -2,7 +2,7 @@
 
 import os, django, sys
 
-sys.path.append(r'C:/Users/ast04/Desktop/projects/notes-bot/notes_project')
+sys.path.append(r'.../notes-tg-bot/notes_project')    # измените поле
 os.environ['DJANGO_SETTINGS_MODULE'] = 'notes_project.settings'
 django.setup()
 
