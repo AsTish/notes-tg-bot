@@ -65,11 +65,7 @@ async def set_commands(bot: Bot):
     await bot.set_my_commands(commands, scope=BotCommandScopeDefault())
 
 
-# Команда /main_menu
-@dp.message(Command("main_menu"))
-async def send_welcome(message: types.Message):
-    await message.reply("Выберите действие")
-
+# Кастомный пользователь
 @sync_to_async
 def create_custom_user(user_id, username):
     if not username:
@@ -88,6 +84,12 @@ def create_custom_user(user_id, username):
     return user
 
 
+# Команда /main_menu
+@dp.message(Command("main_menu"))
+async def send_welcome(message: types.Message):
+    await message.reply("Выберите действие")
+
+
 @sync_to_async
 def get_user_by_id(user_id):
     return user_model.objects.get(id=user_id)
@@ -98,14 +100,6 @@ def get_user_by_id(user_id):
 async def send_welcome(message: types.Message):
     user_id = message.from_user.id
     username = message.from_user.username
-
-
-    # user1 = await get_user_by_id(1)
-    # user5 = await get_user_by_id(5)
-
-    # logger.info(f"user1: {user1.__dict__}")
-    # logger.info(f"user5: {user5.__dict__}")
-
     
     # Создаем пользователя, если он не существует
     user = await create_custom_user(user_id, username)
@@ -287,7 +281,7 @@ async def get_note_text(message: types.Message, state: FSMContext):
 async def choose_folder(callback_query: types.CallbackQuery, state: FSMContext):
     folder_id = callback_query.data[len("folder_"):] if callback_query.data != "folder_none" else None
     
-    # Используем callback_query.from_user.id вместо callback_query.message.from_user.id
+ 
     user_id = callback_query.from_user.id
 
     try:
@@ -300,6 +294,7 @@ async def choose_folder(callback_query: types.CallbackQuery, state: FSMContext):
     await callback_query.answer()
 
 
+# Проверка существования пользователя
 @sync_to_async
 def check_user_exists(user_id):
     return user_model.objects.filter(telegram_id=user_id).exists()
