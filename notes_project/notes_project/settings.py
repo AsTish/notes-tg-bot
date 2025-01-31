@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'notes',
+    "telegram_bot",
 ]
 
 MIDDLEWARE = [
@@ -126,3 +127,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+import os
+from dotenv import load_dotenv
+
+# Загружаем переменные окружения из .env
+load_dotenv()
+
+# Получаем токен API из переменных окружения
+API_TOKEN = os.getenv("BOT_TOKEN")
