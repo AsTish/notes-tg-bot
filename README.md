@@ -40,6 +40,5 @@ pipenv shell
 ### **5. Run the bot**  
 ```sh
 cd notes_project
-cd bot
-python bot.py
+py manage.py runbot
 ```
