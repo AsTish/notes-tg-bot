@@ -34,6 +34,7 @@ from django.core.management import execute_from_command_line
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.template.loader import render_to_string
 
 from asgiref.sync import sync_to_async
 
@@ -186,6 +187,9 @@ async def show_note_detail(callback_query: types.CallbackQuery):
         await callback_query.answer()
         return
 
+    # Django Template
+    message_text = render_to_string("telegram_bot/note_detail.html", {"note": note})
+
     # Кнопка "Удалить"
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -194,11 +198,7 @@ async def show_note_detail(callback_query: types.CallbackQuery):
     )
 
     # Детали заметки
-    await callback_query.message.answer(
-        f"Заголовок: <b>{note.title}</b>\n\nОписание: \n{note.content if note.content else 'Описание отсутствует.'}\n",
-        reply_markup=keyboard,
-        parse_mode="HTML"    # форматирование текста
-    )
+    await callback_query.message.answer(message_text, reply_markup=keyboard, parse_mode="HTML")
     await callback_query.answer()
 
 
