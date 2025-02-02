@@ -10,6 +10,7 @@ kb_main_menu = [
         KeyboardButton(text="все папки")
     ]
 ]
+
 keyboard_main_menu = ReplyKeyboardMarkup(
     keyboard = kb_main_menu,
     resize_keyboard = True,
